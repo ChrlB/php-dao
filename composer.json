@@ -1,0 +1,18 @@
+{
+    "name": "chrlb/php-dao",
+    "description": "Simple PDO wrapper for organizing and reusing named prepared statements",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Chrlb\\PhpDao\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "ChrlB",
+            "email": "johnbonaobra106@gmail.com"
+        }
+    ],
+    "require": {}
+}
