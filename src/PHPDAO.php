@@ -1,7 +1,8 @@
 <?php 
 namespace Chrlb\PhpDao;
 
-use Exception;
+use PDOException,InvalidArgumentException;
+use OutOfBoundsException, RuntimeException;
 use PDO;
 
 class PHPDAO{
@@ -13,85 +14,69 @@ class PHPDAO{
     $this->db_connection = $conn;
   }
 
-  public function prepareStatement(string $query_tittle, string $sql_command, string $description = "NOT SET"){
-    try{
-      if($this->isPstmtExists($query_tittle)) {
-        echo "prepared statement tittled:'$query_tittle' already exists.";
-        return;
-      };
-      $required_params_count = substr_count($sql_command, '?');
-      $pstmt = $this->db_connection->prepare($sql_command);
-      $this->prepared_statements[$query_tittle] = ["sql"=>$pstmt, "description"=>$description, "params_count" => $required_params_count];
+  private function storeStatement(string $query_title, string $sql_command, string $description = "NOT SET"){
+    $required_params_count = substr_count($sql_command, '?');
+    $pstmt = $this->db_connection->prepare($sql_command);
+    $this->prepared_statements[$query_title] = ["sql"=>$pstmt, "description"=>$description, "params_count" => $required_params_count];
+  }
 
-    }catch (Exception $e){
-      echo $e->getMessage();
-      return $e;
+  public function prepareStatement(string $query_title, string $sql_command, string $description = "NOT SET"):void{
+    if($this->isPstmtExists($query_title)) throw new OutOfBoundsException("prepared statement titled:'$query_title' already exists.");
+    
+    try{
+      $this->storeStatement( $query_title,  $sql_command,  $description);
+    } catch (PDOException $e) {
+      throw new InvalidArgumentException("Invalid SQL for statement '$query_title': " . $e->getMessage());
     }
   }
 
-  public function replacePstmt(string $replacing_query_tittle, string $query_tittle, string $sql_command, string $description = "NOT SET"){
+  public function replacePstmt(string $replacing_query_title, string $query_title, string $sql_command, string $description = "NOT SET"):void{
+    if(!$this->isPstmtExists($replacing_query_title)) throw new OutOfBoundsException("no prepared statement titled:'$replacing_query_title'");
+    
     try{
-      if(!$this->isPstmtExists($replacing_query_tittle)) {
-        echo "no prepared statement tittled:'$query_tittle'";
-        return;
-      };
-      
-      unset($this->prepared_statements[$replacing_query_tittle]);
-      $required_params_count = substr_count($sql_command, '?');
-      $pstmt = $this->db_connection->prepare($sql_command);
-      $this->prepared_statements[$query_tittle] = ["sql"=>$pstmt, "description"=>$description, "params_count" => $required_params_count];
-    }catch (Exception $e){
-      echo $e->getMessage();
-      return $e;
+      unset($this->prepared_statements[$replacing_query_title]);
+      $this->storeStatement( $query_title,  $sql_command,  $description);
+    } catch (PDOException $e) {
+      throw new InvalidArgumentException("Invalid SQL for statement '$query_title': " . $e->getMessage());
     }
   }
 
-  public function executeQuery(string $query_tittle, array $params = []){
+  public function executeQuery(string $query_title, array $params = []): array{
+    if(!$this->isPstmtExists( $query_title )) throw new OutOfBoundsException("no prepared statement titled:'$query_title'");
+    
+    $pstmt = $this->prepared_statements[$query_title]["sql"];
+    $required_params_count = $this->pstmtParamsCount($query_title);
+    $params_count = count($params);
+
+    if(($params_count !== $required_params_count)) throw new InvalidArgumentException("Invalid parameter number: number of bound variables does not match number of tokens\n");
+    
+
     try{
-      $pstmt = $this->prepared_statements[$query_tittle]["sql"];
-      $required_params_count = $this->pstmtParamsCount($query_tittle);
-      $params_count = count($params);
+      $pstmt->execute($params); 
+      $data = $pstmt->fetchAll(PDO::FETCH_ASSOC); 
+      return $data;
 
-      if(($params_count !== $required_params_count)){
-        echo "Invalid parameter number: number of bound variables does not match number of tokensPDOException Object\n";
-        return;
-      }
-      $success = $pstmt->execute($params); 
-
-      if ($success) {
-          $data = $pstmt->fetchAll(PDO::FETCH_ASSOC); 
-          return $data;
-      }
-
-    }catch(Exception $e){
-      echo $e->getMessage();
-      return $e;
+    } catch (PDOException $e) {
+      throw new RuntimeException("Failed to execute statement '$query_title': " . $e->getMessage());
     }
   }
 
-  public function getPstmtDescription(string $query_tittle): string{
-    if(!$this->isPstmtExists( $query_tittle )) return "no prepared statement tittled:'$query_tittle'";
-    return ($this->prepared_statements[$query_tittle]["description"]);
+  public function getPstmtDescription(string $query_title): string{
+    if(!$this->isPstmtExists( $query_title )) throw new OutOfBoundsException("no prepared statement titled:'$query_title'");
+    return ($this->prepared_statements[$query_title]["description"]);
   }
 
-  public function isPstmtExists(string $query_tittle): bool{
-    return array_key_exists($query_tittle, $this->prepared_statements);
+  public function isPstmtExists(string $query_title): bool{
+    return array_key_exists($query_title, $this->prepared_statements);
   }
 
   public function getAllPstmt(): array{
     return $this->prepared_statements;
   }
 
-  public function pstmtParamsCount(string $query_tittle): int{
-    if(!$this->isPstmtExists( $query_tittle )) {
-      echo "no prepared statement tittled:'$query_tittle'";
-      return -1;
-    }
-    return $this->prepared_statements[$query_tittle]["params_count"];
+  public function pstmtParamsCount(string $query_title): int{
+    if(!$this->isPstmtExists( $query_title )) throw new OutOfBoundsException("no prepared statement titled:'$query_title'");
+    return $this->prepared_statements[$query_title]["params_count"];
   }
 
 }
-
-
-
-?>
