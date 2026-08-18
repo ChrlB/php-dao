@@ -1,6 +1,6 @@
 {
-    "name": "chrlb/php-dao",
-    "description": "Simple PDO wrapper for organizing and reusing named prepared statements",
+    "name": "chrlb/pdao",
+    "description": "Simple PDO wrapper 'DATA ACCESS OBJECT' for organizing and reusing named prepared statements",
     "type": "library",
     "license": "MIT",
     "autoload": {
