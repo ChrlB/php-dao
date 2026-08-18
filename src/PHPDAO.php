@@ -9,13 +9,14 @@ class PHPDAO{
   private $prepared_statements = [];
 
   public function __construct(PDO $conn){
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $this->db_connection = $conn;
   }
 
   public function prepareStatement(string $query_tittle, string $sql_command, string $description = "NOT SET"){
     try{
-      if($this->isPstmtExist($query_tittle)) {
-        
+      if($this->isPstmtExists($query_tittle)) {
+        echo "prepared statement tittled:'$query_tittle' already exists.";
         return;
       };
       $pstmt = $this->db_connection->prepare($sql_command);
@@ -27,12 +28,29 @@ class PHPDAO{
     }
   }
 
+  public function replacePstmt(string $replacing_query_tittle, string $query_tittle, string $sql_command, string $description = "NOT SET"){
+    try{
+      if(!$this->isPstmtExists($replacing_query_tittle)) {
+        echo "no prepared statement tittled:'$query_tittle'";
+        return;
+      };
+      
+      unset($this->prepared_statements[$replacing_query_tittle]);
+      $pstmt = $this->db_connection->prepare($sql_command);
+      $this->prepared_statements[$query_tittle] = [$pstmt,$description];
+    }catch (Exception $e){
+      echo $e->getMessage();
+      return $e;
+    }
+  }
+
   public function getPstmtDescription(string $query_tittle): string{
+    if(!$this->isPstmtExists( $query_tittle )) return "no prepared statement tittled:'$query_tittle'";
     return ($this->prepared_statements[$query_tittle][1]);
   }
 
-  public function isPstmtExist(string $query_tittle): bool{
-    return array_key_exists($query_tittle,$this->prepared_statements);
+  public function isPstmtExists(string $query_tittle): bool{
+    return array_key_exists($query_tittle, $this->prepared_statements);
   }
 
   public function getAllPstmt(): array{
