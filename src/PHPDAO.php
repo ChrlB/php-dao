@@ -20,6 +20,15 @@ class PHPDAO{
     $this->prepared_statements[$query_title] = ["sql"=>$pstmt, "description"=>$description, "params_count" => $required_params_count];
   }
 
+  private function validateQueryParams(string $query_title, array $params): void{
+    if(!$this->isPstmtExists( $query_title )) throw new OutOfBoundsException("no prepared statement titled:'$query_title'");
+    
+    $required_params_count = $this->pstmtParamsCount($query_title);
+    $params_count = count($params);
+    if($params_count !== $required_params_count) throw new InvalidArgumentException("Invalid parameter number: number of bound variables does not match number of tokens\n");
+    
+  }
+
   public function prepareStatement(string $query_title, string $sql_command, string $description = "NOT SET"):void{
     if($this->isPstmtExists($query_title)) throw new OutOfBoundsException("prepared statement titled:'$query_title' already exists.");
     
@@ -42,19 +51,27 @@ class PHPDAO{
   }
 
   public function executeQuery(string $query_title, array $params = []): array{
-    if(!$this->isPstmtExists( $query_title )) throw new OutOfBoundsException("no prepared statement titled:'$query_title'");
-    
-    $pstmt = $this->prepared_statements[$query_title]["sql"];
-    $required_params_count = $this->pstmtParamsCount($query_title);
-    $params_count = count($params);
 
-    if(($params_count !== $required_params_count)) throw new InvalidArgumentException("Invalid parameter number: number of bound variables does not match number of tokens\n");
-    
+    $this->validateQueryParams($query_title, $params);
+    $pstmt = $this->prepared_statements[$query_title]["sql"];
 
     try{
       $pstmt->execute($params); 
-      $data = $pstmt->fetchAll(PDO::FETCH_ASSOC); 
-      return $data;
+      return $pstmt->fetchAll(PDO::FETCH_ASSOC); 
+
+    } catch (PDOException $e) {
+      throw new RuntimeException("Failed to execute statement '$query_title': " . $e->getMessage());
+    }
+  }
+
+  public function executeUpdate(string $query_title, array $params = []): int{
+    
+    $this->validateQueryParams($query_title, $params);
+    $pstmt = $this->prepared_statements[$query_title]["sql"];
+    
+    try{
+      $pstmt->execute($params); 
+      return $pstmt->rowCount();
 
     } catch (PDOException $e) {
       throw new RuntimeException("Failed to execute statement '$query_title': " . $e->getMessage());
