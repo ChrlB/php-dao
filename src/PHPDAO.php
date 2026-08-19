@@ -6,21 +6,21 @@ use OutOfBoundsException, RuntimeException;
 use PDO;
 
 class PHPDAO{
-  private $db_connection;
-  private $prepared_statements = [];
+  protected $db_connection;
+  protected $prepared_statements = [];
 
   public function __construct(PDO $conn){
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $this->db_connection = $conn;
   }
 
-  private function storeStatement(string $query_title, string $sql_command, string $description = "NOT SET"){
+  protected function storeStatement(string $query_title, string $sql_command, string $description = "NOT SET"){
     $required_params_count = substr_count($sql_command, '?');
     $pstmt = $this->db_connection->prepare($sql_command);
     $this->prepared_statements[$query_title] = ["sql"=>$pstmt, "description"=>$description, "params_count" => $required_params_count];
   }
 
-  private function validateQueryParams(string $query_title, array $params): void{
+  protected function validateQueryParams(string $query_title, array $params): void{
     if(!$this->isPstmtExists( $query_title )) throw new OutOfBoundsException("no prepared statement titled:'$query_title'");
     
     $required_params_count = $this->pstmtParamsCount($query_title);
